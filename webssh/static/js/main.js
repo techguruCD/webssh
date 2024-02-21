@@ -62,7 +62,18 @@ jQuery(function($){
       validated_form_data,
       event_origin,
       hostname_tester = /((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$))|(^\s*((?=.{1,255}$)(?=.*[A-Za-z].*)[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?(?:\.[0-9A-Za-z](?:(?:[0-9A-Za-z]|\b-){0,61}[0-9A-Za-z])?)*)\s*$)/;
+      
+      id = null;
+      download_first_press = true;
+      selectedFiles = []
 
+  function setLoading(flag) {
+    if (flag) {
+      $('#loading-container').removeClass('hidden')
+    } else {
+      $('#loading-container').addClass('hidden')
+    }
+  }
 
   function store_items(names, data) {
     var i, name, value;
@@ -165,6 +176,7 @@ jQuery(function($){
 
   function toggle_fullscreen(term) {
     $('#terminal .terminal').toggleClass('fullscreen');
+    $('.control-btn-container').toggleClass('hidden')
     term.fitAddon.fit();
   }
 
@@ -352,6 +364,8 @@ jQuery(function($){
     }
 
     var msg = resp.responseJSON;
+    id = msg.id;
+    download_first_press = true;
     if (!msg.id) {
       log_status(msg.status, true);
       state = DISCONNECTED;
@@ -557,6 +571,8 @@ jQuery(function($){
       state = DISCONNECTED;
       default_title = 'WebSSH';
       title_element.text = default_title;
+      $('.control-btn-container').toggleClass('hidden')
+      $('#file-download-modal').modal('hide')
     };
 
     $(window).resize(function(){
@@ -831,6 +847,185 @@ jQuery(function($){
       }
     );
   }
+
+  $('.upload-btn').click(function() {
+    $("#upload-file-input").click()
+  })
+
+  $("#upload-file-input").change(function(e) {
+    function reply(data) {
+      console.log(data)
+      setLoading(false)
+    }
+    const form = document.querySelector('#upload-file-form')
+    const data = new FormData(form)
+    setLoading(true)
+    $.ajax({
+      url: `/smtp/upload?id=${id}`,
+      type: 'post',
+      data,
+      complete: reply,
+      cache: false,
+      contentType: false,
+      processData: false
+    });
+  })
+
+  function getFileList(path) {
+    return new Promise((resolve,reject) => {
+      function reply({status, responseJSON}) {
+        setLoading(false)
+        if (status === 200) {
+          responseJSON.list.sort(function(a, b) {
+            if (a.type == "folder" && b.type == "file") return -1;
+            if (a.type == "file" && b.type == "folder") return 1;
+            if (a.filename < b.filename) return -1;
+            if (a.filename > b.filename) return 1;
+            return 0;
+          })
+          return resolve(responseJSON)
+        }
+        return reject()
+      }
+      document.querySelector('#targetUrl').value = path
+      const form = document.querySelector('#file-list');
+      data = new FormData(form);
+  
+      const url = '/smtp?id=' + id;
+  
+      setLoading(true)
+      $.ajax({
+        url: url,
+        type: 'post',
+        data,
+        complete: reply,
+        cache: false,
+        contentType: false,
+        processData: false
+      });
+    })
+  }
+
+  function setFileList({list, path}) {
+    $('#file-list-container .file-item').remove();
+    const fileListContainer = $('#file-list-container');
+    fileListContainer.append(
+      ...list.map(file => {
+        const fileElement = $(`
+          <div class="file-item">
+            <div class="file-item-icon-container">
+              <div class="file-item-icon far fa-${file.type}"></div>
+            </div>
+            <label class="file-item-title">${file.filename}</label>
+            <div class="file-item-check far fa-regular fa-check-square"></div>
+          </div>
+        `)
+        const targetPath = path + (path!='/'?'/':'') + file.filename;
+        if (file.type == 'folder') {
+          $(fileElement).dblclick(async function() {
+            try {
+              setFileList(await getFileList(targetPath))
+            } catch (err) {
+              console.log(err)
+            }
+          })
+        } else {
+          $(fileElement).click(function() {
+            if (!fileElement.hasClass('checked')) {
+              if (selectedFiles.indexOf(targetPath) < 0)
+                selectedFiles.push(targetPath)
+            } else {
+              const index = selectedFiles.indexOf(targetPath)
+              if (index !== -1) {
+                selectedFiles.splice(index, 1)
+              }
+            }
+            fileElement.toggleClass('checked')
+          })
+        }
+        selectedFiles.splice(0)
+        return fileElement
+      })
+    );
+    $('#file-path-list-container li').remove();
+    const filePathListContainer = $('#file-path-list-container');
+    const pathList = ['root', ...path.split('/').filter(Boolean)]
+    let targetPath = ''
+    filePathListContainer.append(
+      ...pathList.map((path, index) => {
+        const isCurrentPath = index == pathList.length - 1
+        const pathElement = $(`<li class="breadcrumb-item file-path-item ${!isCurrentPath&&'cursor-pointer'}">${path}</li>`)
+        if (index) {
+          targetPath += '/'
+          targetPath += path
+        }
+        const mypath = index?targetPath:'/';
+        if (!isCurrentPath) {
+          pathElement.click(async function() {
+            try {
+              setFileList(await getFileList(mypath))
+            } catch (err) {
+    
+            }
+          })
+        }
+        return pathElement
+      })
+    )
+  }
+
+  $('.download-btn').click(async function() {
+    if (download_first_press) {
+      try {
+        setFileList(await getFileList('.'))
+        download_first_press = false;
+      } catch (err) {
+
+      }
+    } else {
+      const pathItemList = document.querySelectorAll('#file-path-list-container li')
+      let path = ''
+      for (let i = 1; i < pathItemList.length; i ++)
+        path += '/' + pathItemList[i].innerHTML
+      try {
+
+        setFileList(await getFileList(path))
+      } catch (err) {
+        console.error(err)
+      }
+    }
+  })
+
+  function downloadFile(filePath) {
+    const pathArray = filePath.split('/')
+    return new Promise(resolve => {
+      document.querySelector('#filePath').value = filePath
+      data = new FormData(document.querySelector('#download-file-form'));
+      function reply(data) {
+        const element = document.createElement('a');
+        document.body.appendChild(element)
+        element.href = URL.createObjectURL(data)
+        element.download = pathArray[pathArray.length - 1]
+        element.click()
+        URL.revokeObjectURL(element.href)
+        document.body.removeChild(element)
+        resolve()
+      }
+      setLoading(true)
+      fetch(`/smtp/download?id=${id}`, {
+        method: 'POST',
+        body: data
+      }).then(response => response.blob()).then(reply)
+    })
+  }
+
+  $('#download-submit').click(async function() {
+    setLoading(true)
+    for(const filePath of selectedFiles) {
+      await downloadFile(filePath)
+    }
+    setLoading(false)
+  })
 
 
   parse_url_data(

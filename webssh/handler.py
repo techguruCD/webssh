@@ -6,7 +6,12 @@ import struct
 import traceback
 import weakref
 import paramiko
+import paramiko.sftp_client
+import stat
 import tornado.web
+import json
+import tempfile
+import os
 
 from concurrent.futures import ThreadPoolExecutor
 from tornado.ioloop import IOLoop
@@ -311,6 +316,100 @@ class NotFoundHandler(MixinHandler, tornado.web.ErrorHandler):
     def prepare(self):
         raise tornado.web.HTTPError(404)
 
+websockets = {}
+
+class DownloadHandler(MixinHandler, tornado.web.RequestHandler):
+    def initialize(self, loop):
+        super(DownloadHandler, self).initialize(loop)
+        
+    @tornado.gen.coroutine
+    def post(self):
+        worker_id = self.get_value('id')
+        if not worker_id:
+            raise tornado.web.HTTPError(400, "id can't be empty.")
+        socket:WsockHandler = websockets.get(worker_id)
+        if not socket:
+            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+        
+        worker:Worker = socket.worker_ref()
+        sftp = worker.sftp
+        filePath = self.get_body_argument('filePath')
+        if not filePath:
+            raise tornado.web.HTTPError(400, "File path can't be empty.")
+        
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        sftp.get(filePath, temp_file.name)
+        self.set_header('Content-Type', 'application/octet-stream')
+        with open(temp_file.name, 'rb') as f:
+            data = f.read()
+            self.write(data)
+        os.unlink(temp_file.name)
+
+class UploadHandler(MixinHandler, tornado.web.RequestHandler):
+    def initialize(self, loop):
+        super(UploadHandler, self).initialize(loop)
+        
+    @tornado.gen.coroutine
+    def post(self):
+        files = self.request.files['uploadFiles']
+        if not files:
+            raise tornado.web.HTTPError(400, "No files selected.")
+
+        worker_id = self.get_value('id')
+        if not worker_id:
+            raise tornado.web.HTTPError(400, "id can't be empty.")
+        socket:WsockHandler = websockets.get(worker_id)
+        if not socket:
+            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+        
+        worker:Worker = socket.worker_ref()
+        sftp = worker.sftp
+
+        for file in files:
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            with open(temp_file.name, 'wb') as f:
+                f.write(file['body'])
+            sftp.put(temp_file.name, file['filename'])
+            os.unlink(temp_file.name)
+        self.write('aaa')
+
+class SMTPHandler(MixinHandler, tornado.web.RequestHandler):
+    def initialize(self, loop):
+        super(SMTPHandler, self).initialize(loop)
+        
+    @tornado.gen.coroutine
+    def post(self):
+        worker_id = self.get_value('id')
+        if not worker_id:
+            raise tornado.web.HTTPError(400, "id can't be empty.")
+        socket:WsockHandler = websockets.get(worker_id)
+        if not socket:
+            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+        
+        targetUrl = self.get_body_argument('targetUrl')
+        worker:Worker = socket.worker_ref()
+        sftp = worker.sftp
+        sftp.chdir(targetUrl)
+        current_dir = sftp.getcwd()
+        listdir_attr = worker.sftp.listdir_attr()
+        listdir = []
+        for attr in listdir_attr:
+            mode = attr.st_mode
+            if stat.S_ISDIR(mode) or stat.S_ISREG(mode):
+                dir_info = {
+                    "filename": attr.filename,
+                    "size": attr.st_size,
+                    "permissions": attr.st_mode,
+                    "created": attr.st_atime,
+                    "modified": attr.st_mtime,
+                }
+                if stat.S_ISDIR(mode):
+                    dir_info["type"] = "folder"
+                elif stat.S_ISREG(mode):
+                    dir_info["type"] = "file"
+                listdir.append(dir_info)
+        self.write({"list": listdir, "path": current_dir})
 
 class IndexHandler(MixinHandler, tornado.web.RequestHandler):
 
@@ -321,6 +420,7 @@ class IndexHandler(MixinHandler, tornado.web.RequestHandler):
         self.policy = policy
         self.host_keys_settings = host_keys_settings
         self.ssh_client = self.get_ssh_client()
+        self.sftp_client = None
         self.debug = self.settings.get('debug', False)
         self.font = self.settings.get('font', '')
         self.result = dict(id=None, status=None, encoding=None)
@@ -463,9 +563,10 @@ class IndexHandler(MixinHandler, tornado.web.RequestHandler):
             raise ValueError('Bad host key.')
 
         term = self.get_argument('term', u'') or u'xterm'
+        self.sftp_client = ssh.open_sftp()
         chan = ssh.invoke_shell(term=term)
         chan.setblocking(0)
-        worker = Worker(self.loop, ssh, chan, dst_addr)
+        worker = Worker(loop=self.loop, ssh=ssh, chan=chan, dst_addr=dst_addr, sftp=self.sftp_client)
         worker.encoding = options.encoding if options.encoding else \
             self.get_default_encoding(ssh)
         return worker
@@ -553,6 +654,7 @@ class WsockHandler(MixinHandler, tornado.websocket.WebSocketHandler):
                 worker.set_handler(self)
                 self.worker_ref = weakref.ref(worker)
                 self.loop.add_handler(worker.fd, worker, IOLoop.READ)
+                websockets[worker_id] = self
             else:
                 self.close(reason='Websocket authentication failed.')
 
@@ -595,6 +697,11 @@ class WsockHandler(MixinHandler, tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         logging.info('Disconnected from {}:{}'.format(*self.src_addr))
+        socket_from_list = websockets.get(self.worker_ref().id)
+
+        if socket_from_list:
+            websockets[self.worker_ref().id] = None
+
         if not self.close_reason:
             self.close_reason = 'client disconnected'
 

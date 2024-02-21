@@ -4,6 +4,7 @@ try:
 except ImportError:
     secrets = None
 import tornado.websocket
+import paramiko.sftp_client
 
 from uuid import uuid4
 from tornado.ioloop import IOLoop
@@ -35,9 +36,10 @@ def recycle_worker(worker):
 
 
 class Worker(object):
-    def __init__(self, loop, ssh, chan, dst_addr):
+    def __init__(self, loop, ssh, chan, dst_addr, sftp):
         self.loop = loop
         self.ssh = ssh
+        self.sftp: paramiko.sftp_client.SFTPClient = sftp
         self.chan = chan
         self.dst_addr = dst_addr
         self.fd = chan.fileno()

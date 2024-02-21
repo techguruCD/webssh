@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8">
     <title> WebSSH </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.1/css/all.min.css" integrity="sha256-2XFplPlrFClt0bIdPgpz8H7ojnk10H69xRqd9+uTShA=" crossorigin="anonymous" />
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ionicons/4.5.6/css/ionicons.min.css" integrity="sha512-0/rEDduZGrqo4riUlwqyuHDQzp2D1ZCgH/gFIfjMIL5az8so6ZiXyhf1Rg8i6xsjv+z/Ubc4tt1thLigEcu6Ug==" crossorigin="anonymous" referrerpolicy="no-referrer" /> -->
     <link href="static/img/favicon.png" rel="icon" type="image/png">
     <link href="static/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
     <link href="static/css/xterm.min.css" rel="stylesheet" type="text/css"/>
     <link href="static/css/fullscreen.min.css" rel="stylesheet" type="text/css"/>
+    <link href="static/css/main.css" rel="stylesheet" type="text/css"/>
     <style>
       .row {
         margin-top: 15px;
@@ -86,10 +89,67 @@
       </form>
     </div>
 
+    <form id="file-list" action="" method="post" enctype="multipart/form-data" hidden>
+      {% module xsrf_form_html() %}
+      <input type="hidden" id="targetUrl" name="targetUrl">
+    </form>
+
+    <form id="download-file-form" action="" method="post" enctype="multipart/form-data" hidden>
+      {% module xsrf_form_html() %}
+      <input type="hidden" id="filePath" name="filePath">
+    </form>
+
     <div class="container">
       <div id="status" style="color: red;"></div>
       <div id="terminal"></div>
+      <div class="control-btn-container hidden">
+        <form id="upload-file-form" action="" method="post" hidden>
+          {% module xsrf_form_html() %}
+          <input type="file" id="upload-file-input" name="uploadFiles" hidden multiple>
+        </form>
+        <div class="upload-btn">Upload</div>
+        <button type="button" class="download-btn" data-toggle="modal" data-target="#file-download-modal">Download</button>
+      </div>
     </div>
+
+    <div class="modal fade" id="file-download-modal" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Download File</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="container">
+              <div class="container-fluid bg-light px-0">
+                <ol class="breadcrumb" id="file-path-list-container">
+                  <li class="breadcrumb-item">home</li>
+                  <li class="breadcrumb-item">home</li>
+                  <li class="breadcrumb-item">home</li>
+                </ol>
+              </div>
+              <div class="container-fluid d-flex flex-wrap" id="file-list-container">
+                <div class="file-item">
+                  <div class="file-item-icon-container">
+                    <div class="file-item-icon far fa-folder"></div>
+                  </div>
+                  <label class="file-item-title">Images</label>
+                  <div class="file-item-check far fa-regular fa-check-square"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="download-submit">Download</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading-container" class="hidden"></div>
 
     <script src="static/js/jquery.min.js"></script>
     <script src="static/js/popper.min.js"></script>
