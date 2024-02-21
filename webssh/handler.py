@@ -329,7 +329,7 @@ class DownloadHandler(MixinHandler, tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400, "id can't be empty.")
         socket:WsockHandler = websockets.get(worker_id)
         if not socket:
-            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+            raise tornado.web.HTTPError(400, "SFTP authentication failed.")
         
         worker:Worker = socket.worker_ref()
         sftp = worker.sftp
@@ -361,7 +361,7 @@ class UploadHandler(MixinHandler, tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400, "id can't be empty.")
         socket:WsockHandler = websockets.get(worker_id)
         if not socket:
-            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+            raise tornado.web.HTTPError(400, "SFTP authentication failed.")
         
         worker:Worker = socket.worker_ref()
         sftp = worker.sftp
@@ -370,7 +370,13 @@ class UploadHandler(MixinHandler, tornado.web.RequestHandler):
             temp_file = tempfile.NamedTemporaryFile(delete=False)
             with open(temp_file.name, 'wb') as f:
                 f.write(file['body'])
-            sftp.put(temp_file.name, file['filename'])
+
+            try:
+                sftp.put(temp_file.name, file['filename'])
+            except Exception as e:
+                self.write(f"Failed to upload file: {e}")
+                self.set_status(400)
+                return
             os.unlink(temp_file.name)
         self.write('aaa')
 
@@ -385,7 +391,7 @@ class SMTPHandler(MixinHandler, tornado.web.RequestHandler):
             raise tornado.web.HTTPError(400, "id can't be empty.")
         socket:WsockHandler = websockets.get(worker_id)
         if not socket:
-            raise tornado.web.HTTPError(400, "SMTP authentication failed.")
+            raise tornado.web.HTTPError(400, "SFTP authentication failed.")
         
         targetUrl = self.get_body_argument('targetUrl')
         worker:Worker = socket.worker_ref()
