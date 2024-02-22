@@ -853,8 +853,23 @@ jQuery(function($){
   })
 
   $("#upload-file-input").change(function(e) {
+    if (!e.target?.files?.length) return;
     function reply(data) {
       console.log(data)
+      if (data.status != 200) {
+        Swal.fire({
+          icon: "error",
+          title: "Oops...",
+          text: data.responseText || 'Something went wrong'
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: 'Uploading finished'
+        });
+      }
+      e.target.value = null;
       setLoading(false)
     }
     const form = document.querySelector('#upload-file-form')
@@ -1021,8 +1036,16 @@ jQuery(function($){
 
   $('#download-submit').click(async function() {
     setLoading(true)
-    for(const filePath of selectedFiles) {
-      await downloadFile(filePath)
+    try {
+      for(const filePath of selectedFiles) {
+        await downloadFile(filePath)
+      }
+    } catch(err) {
+      Swal.fire({
+        icon: "error",
+        title: "Oops...",
+        text: "Something went wrong!"
+      });
     }
     setLoading(false)
   })
