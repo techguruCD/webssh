@@ -105,6 +105,14 @@
     right: 0;
     backdrop-filter: blur(10px);
     z-index: 1051;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#loading-container > div {
+    width: 100px;
+    height: 100px;
 }
 
 .cursor-pointer {
