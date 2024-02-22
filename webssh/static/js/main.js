@@ -848,7 +848,7 @@ jQuery(function($){
     );
   }
 
-  $('.upload-btn').click(function() {
+  $('#upload-btn').click(function() {
     $("#upload-file-input").click()
   })
 
@@ -862,15 +862,17 @@ jQuery(function($){
           title: "Oops...",
           text: data.responseText || 'Something went wrong'
         });
+        setLoading(false)
       } else {
         Swal.fire({
           icon: "success",
           title: "Success",
           text: 'Uploading finished'
         });
+        setLoading(false)
+        $('#refresh-btn').click()
       }
       e.target.value = null;
-      setLoading(false)
     }
     const form = document.querySelector('#upload-file-form')
     const data = new FormData(form)
@@ -983,13 +985,15 @@ jQuery(function($){
     
             }
           })
+        } else {
+          $('#refresh-btn').attr('data-path', mypath)
         }
         return pathElement
       })
     )
   }
 
-  $('.download-btn').click(async function() {
+  $('.files-btn').click(async function() {
     if (download_first_press) {
       try {
         setFileList(await getFileList('.'))
@@ -1048,6 +1052,10 @@ jQuery(function($){
       });
     }
     setLoading(false)
+  })
+
+  $('#refresh-btn').click(async function() {
+    setFileList(await getFileList($('#refresh-btn').attr('data-path')))
   })
 
 

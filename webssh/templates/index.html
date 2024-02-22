@@ -107,8 +107,7 @@
           {% module xsrf_form_html() %}
           <input type="file" id="upload-file-input" name="uploadFiles" hidden multiple>
         </form>
-        <div class="upload-btn">Upload</div>
-        <button type="button" class="download-btn" data-toggle="modal" data-target="#file-download-modal">Download</button>
+        <button type="button" class="files-btn btn btn-primary" data-toggle="modal" data-target="#file-download-modal">Files</button>
       </div>
     </div>
 
@@ -123,12 +122,13 @@
           </div>
           <div class="modal-body">
             <div class="container">
-              <div class="container-fluid bg-light px-0">
-                <ol class="breadcrumb" id="file-path-list-container">
+              <div class="container-fluid bg-light px-0 d-flex justify-content-between align-items-center mb-4">
+                <ol class="breadcrumb bg-transparent mb-0" id="file-path-list-container">
                   <li class="breadcrumb-item">home</li>
                   <li class="breadcrumb-item">home</li>
                   <li class="breadcrumb-item">home</li>
                 </ol>
+                <button class="btn btn-primary mt-0" id="refresh-btn" data-path=".">Refresh</button>
               </div>
               <div class="container-fluid d-flex flex-wrap" id="file-list-container">
                 <div class="file-item">
@@ -144,6 +144,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             <button type="button" class="btn btn-primary" id="download-submit">Download</button>
+            <button type="button" class="btn btn-success" id="upload-btn">Upload</button>
           </div>
         </div>
       </div>
