@@ -99,6 +99,12 @@
       <input type="hidden" id="filePath" name="filePath">
     </form>
 
+    <form id="create-folder-form" action="" method="post" enctype="multipart/form-data" hidden>
+      {% module xsrf_form_html() %}
+      <input type="hidden" id="folder-create-path" name="targetUrl">
+      <input type="hidden" id="folder-name-input" name="name">
+    </form>
+
     <div class="container">
       <div id="status" style="color: red;"></div>
       <div id="terminal"></div>

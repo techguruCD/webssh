@@ -4,7 +4,7 @@ import tornado.ioloop
 
 from tornado.options import options
 from webssh import handler
-from webssh.handler import IndexHandler, WsockHandler, NotFoundHandler, LSHandler, DownloadHandler, UploadHandler
+from webssh.handler import IndexHandler, WsockHandler, NotFoundHandler, LSHandler, DownloadHandler, UploadHandler, CreateFolderHandler
 from webssh.settings import (
     get_app_settings,  get_host_keys_settings, get_policy_setting,
     get_ssl_context, get_server_settings, check_encoding_setting
@@ -21,6 +21,7 @@ def make_handlers(loop, options):
         (r'/sftp/ls', LSHandler, dict(loop=loop)),
         (r'/sftp/download', DownloadHandler, dict(loop=loop)),
         (r'/sftp/upload', UploadHandler, dict(loop=loop)),
+        (r'/sftp/create-folder', CreateFolderHandler, dict(loop=loop)),
         (r'/ws', WsockHandler, dict(loop=loop))
     ]
     return handlers

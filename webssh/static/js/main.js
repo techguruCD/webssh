@@ -851,6 +851,10 @@ jQuery(function ($) {
     $("#upload-file-input").click()
   })
 
+  async function refreshFileList() {
+    setFileList(await getFileList($('#refresh-btn').attr('data-path')))
+  }
+
   $("#upload-file-input").change(function (e) {
     if (!e.target?.files?.length) return;
     function reply(data) {
@@ -869,7 +873,7 @@ jQuery(function ($) {
           text: 'Uploading finished'
         });
         setLoading(false)
-        $('#refresh-btn').click()
+        refreshFileList()
       }
       e.target.value = null;
     }
@@ -1053,8 +1057,8 @@ jQuery(function ($) {
     setLoading(false)
   })
 
-  $('#refresh-btn').click(async function () {
-    setFileList(await getFileList($('#refresh-btn').attr('data-path')))
+  $('#refresh-btn').click(function () {
+    refreshFileList()
   })
 
   $('#delete-btn').click(async function () {
@@ -1071,37 +1075,49 @@ jQuery(function ($) {
       showCancelButton: true,
       confirmButtonText: "Create",
       showLoaderOnConfirm: true,
-      preConfirm: async (login) => {
+      preConfirm: async (name) => {
         try {
-          const githubUrl = `
-            https://api.github.com/users/${login}
-          `;
-          const response = await fetch(githubUrl);
-          if (!response.ok) {
-            return Swal.showValidationMessage(`
-              ${JSON.stringify(await response.json())}
-            `);
-          }
-          return response.json();
+          const url = '/sftp/create-folder?id=' + id;
+          setLoading(true)
+          await new Promise((resolve, reject) => {
+            document.querySelector('#folder-create-path').value = $('#refresh-btn').attr('data-path')
+            document.querySelector('#folder-name-input').value = name
+            const data = new FormData(document.querySelector('#create-folder-form'))
+            function reply({status, responseText}) {
+              if (status === 200) {
+                resolve('success')
+              }
+              reject(responseText)
+              setLoading(false)
+            }
+            $.ajax({
+              url: url,
+              type: 'post',
+              data: data,
+              complete: reply,
+              cache: false,
+              contentType: false,
+              processData: false
+            });
+          })
+          return 'success';
         } catch (error) {
           Swal.showValidationMessage(`
-            Request failed: ${error}
+            Failed: ${error}
           `);
         }
       },
       allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
-      if (result.isConfirmed) {
+      if (result?.value == 'success') {
+        refreshFileList();
         Swal.fire({
-          title: `${result.value.login}'s avatar`,
-          imageUrl: result.value.avatar_url
+          icon: "success",
+          title: "Success",
+          text: 'Folder Created'
         });
       }
     });
-  })
-
-  $('#create-folder-submit').click(async function () {
-
   })
 
   parse_url_data(

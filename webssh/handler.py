@@ -350,7 +350,6 @@ class DownloadHandler(SFTPHandler):
         os.unlink(temp_file.name)
 
 class UploadHandler(SFTPHandler):
-        
     @tornado.gen.coroutine
     def post(self):
         files = self.request.files['uploadFiles']
@@ -371,6 +370,25 @@ class UploadHandler(SFTPHandler):
                 self.set_status(400)
                 return
             os.unlink(temp_file.name)
+        self.write('aaa')
+
+class CreateFolderHandler(SFTPHandler):
+    @tornado.gen.coroutine
+    def post(self):
+        name = self.get_body_argument('name')
+        targetUrl = self.get_body_argument('targetUrl')
+        if not name:
+            self.write("Folder name can't be empty")
+            self.set_status(400)
+
+        sftp:paramiko.sftp_client.SFTPClient = self.getSFTP()
+        sftp.chdir(targetUrl)
+        try:
+            sftp.mkdir(name)
+        except Exception as e:
+            self.write(f"Failed to create a folder: {e}")
+            self.set_status(400)
+            return
         self.write('aaa')
 
 class LSHandler(SFTPHandler):
